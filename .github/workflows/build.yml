@@ -52,9 +52,18 @@ jobs:
 
       - name: Publish Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-ghrelease@v2
-        with:
-          files: |
-            dist/InternetDoctor.exe
-            dist/InternetDoctor-Setup-*.exe
-          generate_release_notes: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/InternetDoctor.exe \
+            dist/InternetDoctor-Setup-*.exe \
+            --title "Internet Doctor ${GITHUB_REF_NAME}" \
+            --notes "Automatic internet-outage diagnosis & repair for Windows 10/11.
+
+            - InternetDoctor.exe          portable, no install needed
+            - InternetDoctor-Setup-*.exe  full installer (optional autostart)
+
+            See the README for usage and FAQ." \
+            --latest
