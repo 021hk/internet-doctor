@@ -21,6 +21,7 @@ echo [2/3] Building dist\InternetDoctor.exe (this takes a few minutes)...
 %PY% -m PyInstaller --noconfirm --clean --onefile --windowed ^
   --name InternetDoctor ^
   --icon assets\icon.ico ^
+  --add-data "assets;assets" ^
   --collect-all customtkinter ^
   --hidden-import pystray._win32 ^
   main.py

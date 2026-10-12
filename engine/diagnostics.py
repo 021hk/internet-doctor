@@ -144,8 +144,13 @@ def _dns_via_public():
     return rc == 0 and ("Address" in out or "answer" in out.lower())
 
 
-def build_plan(findings):
-    """Order fix ids by invasiveness, deduplicated."""
+def build_plan(findings, deep=False):
+    """Order fix ids by invasiveness, deduplicated.
+
+    deep=True appends the heavy network-stack resets (netsh winsock reset /
+    netsh int ip reset) even when no finding explicitly asked for them -
+    used when an earlier repair attempt failed and the issue persists.
+    """
     wanted = []
     for f in findings:
         wanted.extend(FINDING_DEFS.get(f["id"], {}).get("fixes", []))
@@ -153,6 +158,10 @@ def build_plan(findings):
     for fid in FIX_PRIORITY:
         if fid in wanted and fid not in plan:
             plan.append(fid)
+    if deep:
+        for fid in ("winsock_reset", "tcp_reset"):
+            if fid not in plan:
+                plan.append(fid)
     return plan
 
 

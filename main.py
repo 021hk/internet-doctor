@@ -28,7 +28,7 @@ if BASE not in sys.path:
 
 from engine import store, monitor, diagnostics, fixes, knowledge, online_help
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 
 class Controller:
@@ -47,6 +47,8 @@ class Controller:
         self.last_search_query = "Windows 10 11 no internet connection fix troubleshoot"
         self.worker_thread = None
         self.worker_lock = threading.Lock()
+        self.pending_recheck = False   # repair failed: re-check after first reconnect
+        self.escalate = False          # next plan should include the deep stack resets
         self._log("info", "برنامه دکتر اینترنت نسخه %s اجرا شد" % VERSION,
                   "Internet Doctor v%s started" % VERSION)
 
@@ -104,6 +106,11 @@ class Controller:
                     if self.fail_count:
                         self._log("ok", "اتصال اینترنت برگشت", "Internet is back")
                     self.fail_count = 0
+                    if self.pending_recheck:
+                        # first reconnect after a failed repair -> re-verify
+                        if self._spawn_worker("recheck"):
+                            self.pending_recheck = False
+                            self.emit({"type": "recheck_pending", "on": False})
                 else:
                     self.fail_count += 1
                     self._log("warn", "مشکل اتصال: %s (%d از %d)" % (
@@ -134,9 +141,16 @@ class Controller:
             return True
 
     def _fix_pipeline(self, trigger):
-        self.emit({"type": "activity", "running": True,
-                   "fa": "در حال بررسی دقیق مشکل...",
-                   "en": "Running detailed diagnosis..."})
+        if trigger == "recheck":
+            self.emit({"type": "activity", "running": True,
+                       "fa": "بررسی مجدد پس از وصل شدن اینترنت...",
+                       "en": "Post-reconnect re-check..."})
+            self._log("ok", "اینترنت وصل شد؛ طبق قول قبلی دوباره بررسی می‌کنم",
+                      "Internet is back; running the promised re-check")
+        else:
+            self.emit({"type": "activity", "running": True,
+                       "fa": "در حال بررسی دقیق مشکل...",
+                       "en": "Running detailed diagnosis..."})
         probe = self.last_probe or monitor.check_now()
         diag = diagnostics.run_diagnosis(probe, self._log, self.cancel)
         self.last_search_query = diag.search_query
@@ -144,6 +158,12 @@ class Controller:
                    "modem_hint": diag.modem_hint})
 
         plan = list(diag.plan)
+        # Escalation: a previous attempt failed -> also include the heavy
+        # stack resets (netsh winsock reset / netsh int ip reset).
+        if self.escalate or trigger == "recheck":
+            for extra in ("winsock_reset", "tcp_reset"):
+                if extra not in plan:
+                    plan.append(extra)
         # Skip the DNS change when the preferred DNS is already configured.
         if "set_dns" in plan:
             cur = (probe.dns_servers or "").lower()
@@ -169,8 +189,12 @@ class Controller:
             summary = fixes.run_fix_plan(plan, ctx, monitor.quick_check,
                                          self._log, self.cancel, emit_step)
         else:
-            self._log("info", "تعمیر خودکار غیرفعال است؛ فقط تشخیص انجام شد",
-                      "Auto-fix disabled; diagnosis only")
+            if trigger == "recheck":
+                self._log("ok", "بررسی مجدد انجام شد؛ مشکل فعالی پیدا نشد",
+                          "Re-check finished; no active problem found")
+            else:
+                self._log("info", "تعمیر خودکار غیرفعال است؛ فقط تشخیص انجام شد",
+                          "Auto-fix disabled; diagnosis only")
 
         self.emit({"type": "activity", "running": True,
                    "fa": "بررسی نهایی اتصال...", "en": "Final connection check..."})
@@ -179,7 +203,12 @@ class Controller:
         self.emit({"type": "status", "probe": final_probe})
 
         if final_probe.state == "online":
-            result = "fixed" if (summary["steps"] or trigger == "manual") else "no_fix_needed"
+            if summary["steps"]:
+                result = "fixed"
+            elif trigger == "recheck":
+                result = "verified"      # healthy again, promised check done
+            else:
+                result = "no_fix_needed"
         elif summary["needs_reboot"]:
             result = "needs_reboot"
         else:
@@ -212,12 +241,27 @@ class Controller:
 
         if result == "fixed":
             self._log("ok", "مشکل با موفقیت رفع شد", "Problem fixed successfully")
+        elif result == "verified":
+            self._log("ok", "بررسی پس از وصل شدن: اتصال کاملاً سالم است",
+                      "Post-reconnect check: connection is healthy")
         elif result == "needs_reboot":
             self._log("warn", "برای تکمیل تعمیر، ویندوز را ری‌استارت کنید",
                       "Please restart Windows to finish the repair")
         elif result == "unresolved":
             self._log("fail", "مشکل حل نشد؛ راه‌حل‌های وب و ری‌استارت مودم را امتحان کنید",
                       "Problem not fixed; try the web suggestions and reboot the modem")
+
+        # Failed or needs a reboot?  Arm the post-reconnect re-check and
+        # escalate the next repair plan (winsock / TCP-IP resets included).
+        if result in ("unresolved", "needs_reboot"):
+            self.pending_recheck = True
+            self.escalate = True
+            self.emit({"type": "recheck_pending", "on": True})
+            self._log("info",
+                      "به‌محض اولین وصل شدن اینترنت، دوباره بررسی و در صورت نیاز تعمیر می‌شود",
+                      "Will re-check and repair again right after the first reconnect")
+        else:
+            self.escalate = False
 
     # ---------- misc
     def run_web_search(self):
@@ -278,6 +322,10 @@ def selftest():
     reg = fixes.build_registry({"iface": probe.iface, "dns": "8.8.8.8"})
     assert "flush_dns" in reg and "winsock_reset" in reg
     print("[PASS] fix registry: %d steps available" % len(reg))
+
+    deep = diagnostics.build_plan([], deep=True)
+    assert "winsock_reset" in deep and "tcp_reset" in deep
+    print("[PASS] escalated (deep) plan includes winsock + TCP/IP resets")
 
     try:
         res = online_help.search_web("windows 11 no internet fix")

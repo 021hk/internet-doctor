@@ -11,6 +11,8 @@ A Windows 10/11 desktop app that constantly watches your connection. When it dro
 - **مانیتورینگ دائمی** — هر چند ثانیه پینگ، DNS و HTTP بررسی می‌شود | Continuous monitoring: ping, DNS and HTTP probes every few seconds
 - **تشخیص هوشمند علت** — آداپتور، DHCP/IP، گیت‌وی/مودم، DNS، پروکسی، سرویس‌ها و کپتیو پورتال | Smart cause detection: adapter, DHCP/IP, gateway/modem, DNS, proxy, services, captive portal
 - **تعمیر خودکار پله‌پله** — از کم‌خطرترین (فلاش DNS) تا کامل‌ترین (ریست Winsock)؛ بعد از هر گام اتصال تست می‌شود و با برگشتن نت، بقیه گام‌ها اجرا نمی‌شوند | Progressive auto-repair from safest (DNS flush) to deepest (Winsock reset); connectivity is re-checked after every step
+- **بررسی مجدد پس از وصل شدن** — اگر تعمیر موفق نشد، برنامه به‌محض اولین وصل شدن اینترنت دوباره بررسی می‌کند و در صورت نیاز تعمیر را با گام‌های عمیق‌تر (ریست Winsock و TCP/IP) تکرار می‌کند | If a repair fails, the app re-checks right after the first reconnect and retries with deeper resets (Winsock / TCP-IP) if needed
+- **ظاهر تازه‌شده** — کارت وضعیت بزرگ با نقطه چشمک‌زن، چیپ‌های IP/گیت‌وی/DNS/پینگ و لوگو | Refreshed UI: hero status card with pulsing dot, IP/Gateway/DNS/Ping chips and the app logo
 - **پایگاه دانش دوزبانه** — ۱۵ مشکل رایج با علت، راه‌حل و دستور دقیق | Bilingual knowledge base: 15 common problems with causes, fixes and exact commands
 - **جستجوی وب وقتی حل نشد** — نتایج DuckDuckGo/Bing داخل برنامه با دکمه بازکردن | Web search fallback (DuckDuckGo/Bing) with in-app clickable results
 - **دوزبانه کامل** — همه پیام‌ها فارسی + انگلیسی | Fully bilingual: every message in Persian + English
@@ -23,8 +25,8 @@ A Windows 10/11 desktop app that constantly watches your connection. When it dro
 
 1. به صفحه [Releases](https://github.com/021hk/internet-doctor/releases) بروید.
    Go to the Releases page.
-2. فایل `InternetDoctor-Setup-1.1.0.exe` را دانلود و اجرا کنید (یا فقط `InternetDoctor.exe` را بدون نصب اجرا کنید — Portable).
-   Download and run `InternetDoctor-Setup-1.1.0.exe`, or grab the standalone `InternetDoctor.exe` (portable, no install needed).
+2. فایل `InternetDoctor-Setup-1.2.0.exe` را دانلود و اجرا کنید (یا فقط `InternetDoctor.exe` را بدون نصب اجرا کنید — Portable).
+   Download and run `InternetDoctor-Setup-1.2.0.exe`, or grab the standalone `InternetDoctor.exe` (portable, no install needed).
 3. در صفحه تنظیمات نصب می‌توانید انتخاب کنید که برنامه با شروع ویندوز بالا بیاید.
    The installer can optionally add the app to Windows startup.
 
@@ -58,6 +60,16 @@ In the EXE build, settings and history live in `%APPDATA%\InternetDoctor`.
    - تمدید IP (release/renew) | Release and renew the IP
    - خاموش/روشن‌کردن کارت شبکه | Toggle the network adapter
    - ریست Winsock و TCP/IP (نیاز به ری‌استارت ویندوز) | Winsock / TCP-IP reset (Windows restart required)
+
+دستورهای اصلی این نردبان | The core commands behind the ladder:
+
+```
+ipconfig /flushdns
+ipconfig /release
+ipconfig /renew
+netsh winsock reset
+netsh int ip reset
+```
 4. اگر مشکل مودم یا اپراتور باشد، برنامه به‌جای دستور بی‌فایده، راهنمای ری‌استارت مودم و بررسی چراغ‌ها را نشان می‌دهد.
    For modem/ISP faults the app shows modem power-cycle guidance instead of useless commands.
 5. اگر هیچ راه‌حلی جواب نداد و مقداری اتصال وجود داشت، برنامه از وب جستجو می‌کند و نتایج را با لینک قابل کلیک نشان می‌دهد.

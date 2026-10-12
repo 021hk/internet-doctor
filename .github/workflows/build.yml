@@ -31,6 +31,7 @@ jobs:
           pyinstaller --noconfirm --clean --onefile --windowed
           --name InternetDoctor
           --icon assets/icon.ico
+          --add-data "assets;assets"
           --collect-all customtkinter
           --hidden-import pystray._win32
           main.py

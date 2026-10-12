@@ -96,7 +96,7 @@ def build_registry(ctx):
     add("release_renew",
         "تمدید IP (آزادسازی و تخصیص مجدد)",
         "Release and renew the IP address",
-        ["ipconfig /release", "ipconfig /renew"], admin=True, settle=10)
+        ["ipconfig /release", "ipconfig /renew"], settle=10)
 
     if iface:
         add("adapter_toggle",

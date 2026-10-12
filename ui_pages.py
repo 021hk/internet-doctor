@@ -16,7 +16,12 @@ CAT_COLORS = {"DNS": BLUE, "IP": TEAL, "Wi-Fi": AMBER, "Modem": RED,
 
 RESULT_FA = {"fixed": ("رفع شد", GREEN), "unresolved": ("حل نشد", RED),
              "needs_reboot": ("نیاز به ری‌استارت", AMBER),
-             "no_fix_needed": ("بدون نیاز", BLUE)}
+             "no_fix_needed": ("بدون نیاز", BLUE),
+             "verified": ("بررسی شد - سالم", GREEN)}
+
+TRIG_FA = {"auto": "(خودکار | auto)", "manual": "(دستی | manual)",
+           "recheck": "(بررسی مجدد پس از وصل شدن | re-check)",
+           "selftest": "(تست | selftest)"}
 
 
 def build_kb_tab(app, parent):
@@ -102,7 +107,7 @@ def refresh_history(app):
         return
     for r in records:
         label, color = RESULT_FA.get(r.get("result", ""), ("؟", MUT))
-        trig = "(خودکار | auto)" if r.get("trigger") == "auto" else "(دستی | manual)"
+        trig = " " + TRIG_FA.get(r.get("trigger", ""), "")
         card = ctk.CTkFrame(scroll, fg_color=PANEL2, corner_radius=10)
         card.pack(fill="x", pady=4)
         top = ctk.CTkFrame(card, fg_color="transparent")
@@ -222,7 +227,9 @@ def build_settings_tab(app, parent):
                   fg_color="#2A3A57", hover_color="#354A6E").pack(side="left", padx=8)
 
     ctk.CTkLabel(frame,
-                 text=("نکته: برنامه برای اجرای بعضی تعمیرها (مثل تغییر DNS و ریست Winsock) به دسترسی مدیر نیاز دارد.\n"
-                       "Note: some repairs (DNS change, Winsock reset) require administrator rights."),
+                 text=("نکته ۱: بعضی تعمیرها (مثل تغییر DNS و ریست Winsock) به دسترسی مدیر نیاز دارند.\n"
+                       "نکته ۲: اگر تعمیر موفق نشد، برنامه به‌محض اولین وصل شدن اینترنت دوباره بررسی می‌کند و در صورت نیاز تعمیر را با گام‌های عمیق‌تر (ریست Winsock و TCP/IP) تکرار می‌کند.\n"
+                       "Note 1: some repairs (DNS change, Winsock reset) require administrator rights.\n"
+                       "Note 2: when a repair fails, the app re-checks right after the first reconnect and, if needed, retries with deeper resets (Winsock / TCP-IP)."),
                  font=app.f(11), text_color=MUT, justify="left",
                  wraplength=760).pack(anchor="w", pady=(18, 0))
